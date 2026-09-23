@@ -1,0 +1,27 @@
+name: bint-backend
+
+services:
+  bint_postgres:
+    image: postgres:17
+    container_name: bint_backend_postgres
+    restart: unless-stopped
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}${APP_ENV}
+    env_file:
+      - .env
+    networks:
+      - bint_backend_network
+    volumes:
+      - bint_backend_postgres_data:/var/lib/postgresql/data
+
+networks:
+  bint_backend_network:
+    name: bint_backend_network
+
+volumes:
+  bint_backend_postgres_data:
+    name: bint_backend_postgres_data
