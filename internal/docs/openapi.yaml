@@ -1,0 +1,266 @@
+openapi: 3.1.0
+info:
+  title: Bint Authentication API
+  version: 1.0.0
+  description: |
+    Bint supports two ways to prove identity: email/password and Google OpenID Connect.
+    Both methods finish by issuing the same Bint short-lived access JWT and an opaque,
+    rotating refresh token in an HttpOnly cookie. Google tokens are verified during
+    sign-in and are not used to authorize ordinary Bint API requests.
+
+    Password-reset endpoints are intentionally deferred.
+  x-todo:
+    - Add password-reset request and confirmation endpoints.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Authentication
+  - name: System
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Check API health
+      responses:
+        "200":
+          description: API is running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthSuccessResponse"
+  /api/v1/auth/email/register:
+    post:
+      tags: [Authentication]
+      summary: Register with email and password
+      description: Creates a user, hashes the password, and issues Bint access and refresh tokens.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterEmailRequest"
+      responses:
+        "201":
+          description: Account created
+          headers:
+            Set-Cookie:
+              description: HttpOnly Bint access and refresh cookies.
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSuccessResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /api/v1/auth/email/login:
+    post:
+      tags: [Authentication]
+      summary: Sign in with email and password
+      description: Verifies the password and issues the same Bint token pair used after Google sign-in.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginEmailRequest"
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSuccessResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/v1/auth/google:
+    get:
+      tags: [Authentication]
+      summary: Start Google sign-in
+      description: Generates state, nonce, and PKCE values in temporary HttpOnly cookies and redirects to Google.
+      responses:
+        "302":
+          description: Redirect to Google's authorization endpoint
+  /api/v1/auth/google/callback:
+    get:
+      tags: [Authentication]
+      summary: Complete Google sign-in
+      description: |
+        Validates state, exchanges the authorization code, verifies Google's ID token and nonce,
+        finds or creates the Bint user, issues Bint tokens, and redirects to the frontend.
+      parameters:
+        - in: query
+          name: code
+          schema: { type: string }
+          description: One-time authorization code returned by Google.
+        - in: query
+          name: state
+          schema: { type: string }
+          description: CSRF value returned by Google.
+        - in: query
+          name: error
+          schema: { type: string }
+          description: Google authorization error, when authentication was denied or failed.
+      responses:
+        "302":
+          description: Redirect to the configured frontend success or failure URL
+  /api/v1/auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh a Bint session
+      description: Rotates the opaque refresh token and issues a new short-lived Bint access JWT.
+      security:
+        - refreshCookie: []
+      responses:
+        "200":
+          description: Tokens rotated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSuccessResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/v1/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Log out of Bint
+      description: Revokes the current Bint refresh token and clears auth cookies. It does not sign out of Google.
+      security:
+        - refreshCookie: []
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptySuccessResponse"
+  /api/v1/auth/session:
+    get:
+      tags: [Authentication]
+      summary: Get the current Bint session
+      description: Accepts the access JWT in the Authorization header or the HttpOnly access cookie.
+      security:
+        - bearerAuth: []
+        - accessCookie: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionSuccessResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    accessCookie:
+      type: apiKey
+      in: cookie
+      name: bint_access
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: bint_refresh
+  schemas:
+    RegisterEmailRequest:
+      type: object
+      required: [email, password, displayName]
+      properties:
+        email: { type: string, format: email }
+        password:
+          { type: string, format: password, minLength: 8, maxLength: 72 }
+        displayName: { type: string, minLength: 1, maxLength: 100 }
+    LoginEmailRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+    AuthResponse:
+      type: object
+      required: [accessToken, tokenType, expiresAt, user]
+      properties:
+        accessToken:
+          type: string
+          description: Short-lived JWT issued by Bint, not by Google.
+        tokenType: { type: string, const: Bearer }
+        expiresAt: { type: string, format: date-time }
+        user: { $ref: "#/components/schemas/User" }
+    AuthSuccessResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code: { type: integer, const: 0 }
+        message: { type: string }
+        data: { $ref: "#/components/schemas/AuthResponse" }
+    SessionResponse:
+      type: object
+      required: [authenticated, user]
+      properties:
+        authenticated: { type: boolean, const: true }
+        user: { $ref: "#/components/schemas/User" }
+    SessionSuccessResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code: { type: integer, const: 0 }
+        message: { type: string }
+        data: { $ref: "#/components/schemas/SessionResponse" }
+    HealthSuccessResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code: { type: integer, const: 0 }
+        message: { type: string }
+        data:
+          type: object
+          required: [status]
+          properties:
+            status: { type: string, const: ok }
+    EmptySuccessResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code: { type: integer, const: 0 }
+        message: { type: string }
+        data: { type: object, additionalProperties: false }
+    User:
+      type: object
+      required: [id, email, displayName, emailVerified, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        displayName: { type: string }
+        avatarUrl: { type: string, format: uri }
+        emailVerified: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    ErrorResponse:
+      type: object
+      required: [code, message, error]
+      properties:
+        code:
+          type: integer
+          minimum: 1
+        message: { type: string }
+        error:
+          oneOf:
+            - type: string
+            - type: object
+              additionalProperties: true
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Unauthorized:
+      description: Invalid credentials or token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Conflict:
+      description: Account already exists
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
