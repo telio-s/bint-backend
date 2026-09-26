@@ -118,6 +118,7 @@ func (m *fakeTokenManager) IssueAccessToken(_ string, now time.Time) (string, ti
 	m.issued++
 	return "access-token", now.Add(15 * time.Minute), nil
 }
+
 func (*fakeTokenManager) VerifyAccessToken(string) (model.AccessClaims, error) {
 	return model.AccessClaims{}, nil
 }
