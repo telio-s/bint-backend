@@ -9,6 +9,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
+	github.com/lmittmann/tint v1.2.0
 	go.uber.org/fx v1.24.0
 	golang.org/x/crypto v0.57.0
 	golang.org/x/oauth2 v0.37.0

@@ -196,6 +196,9 @@ without exposing whether an email exists.
 - Use `*slog.Logger` for application logging. Constructor functions must accept
   the shared logger and derive a component logger, for example
   `logger.With("component", "auth_service")`.
+- An empty `APP_ENV` means local development and selects Tint's colored terminal
+  handler. Any non-empty `APP_ENV` selects the structured JSON handler used by
+  deployed environments.
 - Pass loggers inward through Fx dependency injection. Do not create package
   global loggers, and never log passwords, raw JWTs, OAuth codes, refresh
   tokens, client secrets, or database credentials.

@@ -27,7 +27,7 @@ func Load() (*Config, error) {
 	config := &Config{
 		Application: ApplicationConfig{
 			Name:        getEnv("APP_NAME", "bint-backend"),
-			Environment: getEnv("APP_ENV", "development"),
+			Environment: os.Getenv("APP_ENV"),
 			LogLevel:    getEnv("LOG_LEVEL", "info"),
 		},
 		Server:   server,

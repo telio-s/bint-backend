@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lmittmann/tint"
 	httpadapter "github.com/telio-s/bint-backend.git/internal/adapter/http"
 	"github.com/telio-s/bint-backend.git/internal/adapter/http/handler"
 	googleoauth "github.com/telio-s/bint-backend.git/internal/adapter/oauth/google"
@@ -22,6 +23,7 @@ import (
 	"github.com/telio-s/bint-backend.git/internal/port"
 	"github.com/telio-s/bint-backend.git/pkg/httpjson"
 	"go.uber.org/fx"
+	"go.uber.org/fx/fxevent"
 )
 
 func main() {
@@ -40,6 +42,9 @@ func main() {
 			httpadapter.NewRouter,
 			provideHTTPServer,
 		),
+		fx.WithLogger(func(logger *slog.Logger) fxevent.Logger {
+			return &fxevent.SlogLogger{Logger: logger.With("component", "fx")}
+		}),
 		fx.Invoke(registerLifecycle),
 	).Run()
 }
@@ -54,10 +59,24 @@ func provideLogger(cfg *config.Config) *slog.Logger {
 	case "error":
 		level = slog.LevelError
 	}
-	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})).With(
-		"application", cfg.Application.Name,
-		"environment", cfg.Application.Environment,
-	)
+
+	var handler slog.Handler
+	if cfg.Application.Environment == "" {
+		handler = tint.NewTextHandler(os.Stdout, &tint.Options{
+			Level:      level,
+			AddSource:  level == slog.LevelDebug,
+			TimeFormat: "15:04:05.000",
+			NoColor:    os.Getenv("NO_COLOR") != "",
+		})
+	} else {
+		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})
+	}
+
+	logger := slog.New(handler).With("application", cfg.Application.Name)
+	if cfg.Application.Environment != "" {
+		logger = logger.With("environment", cfg.Application.Environment)
+	}
+	return logger
 }
 
 func providePool(
