@@ -24,6 +24,14 @@ type ErrorResponse struct {
 	Error   any    `json:"error"`
 }
 
+// ErrorDefinition describes the HTTP status and public envelope fields for an
+// error response. The diagnostic error detail is supplied when it is written.
+type ErrorDefinition struct {
+	Status  int
+	Code    int
+	Message string
+}
+
 type Responder struct {
 	logger *slog.Logger
 }

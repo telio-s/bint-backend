@@ -3,10 +3,10 @@ package middleware
 import (
 	"fmt"
 	"log/slog"
-	"net/http"
 	"runtime/debug"
 
 	"github.com/gin-gonic/gin"
+	"github.com/telio-s/bint-backend.git/internal/adapter/http/apierror"
 	"github.com/telio-s/bint-backend.git/pkg/httpjson"
 )
 
@@ -26,12 +26,10 @@ func NewRecovery(logger *slog.Logger, responder *httpjson.Responder) gin.Handler
 					string(debug.Stack()),
 				)
 				if !c.Writer.Written() {
-					responder.Failure(
-						c.Request.Context(),
-						c.Writer,
-						http.StatusInternalServerError,
-						1500,
-						"An unexpected error occurred.",
+					apierror.WriteDefinition(
+						c,
+						responder,
+						apierror.Internal,
 						err,
 					)
 				}

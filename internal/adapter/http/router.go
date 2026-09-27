@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/telio-s/bint-backend.git/internal/adapter/http/apierror"
 	"github.com/telio-s/bint-backend.git/internal/adapter/http/handler"
 	"github.com/telio-s/bint-backend.git/internal/adapter/http/middleware"
 	"github.com/telio-s/bint-backend.git/internal/docs"
@@ -41,22 +42,18 @@ func NewRouter(
 	api := router.Group("/api/v1")
 	registerAuthRoutes(api, auth)
 	router.NoRoute(func(c *gin.Context) {
-		responder.Failure(
-			c.Request.Context(),
-			c.Writer,
-			http.StatusNotFound,
-			1005,
-			"The requested route was not found.",
+		apierror.WriteDefinition(
+			c,
+			responder,
+			apierror.RouteNotFound,
 			errors.New("route not found"),
 		)
 	})
 	router.NoMethod(func(c *gin.Context) {
-		responder.Failure(
-			c.Request.Context(),
-			c.Writer,
-			http.StatusMethodNotAllowed,
-			1006,
-			"The HTTP method is not allowed for this route.",
+		apierror.WriteDefinition(
+			c,
+			responder,
+			apierror.MethodNotAllowed,
 			errors.New("method not allowed"),
 		)
 	})

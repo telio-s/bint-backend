@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/telio-s/bint-backend.git/internal/adapter/http/apierror"
 	"github.com/telio-s/bint-backend.git/internal/adapter/http/dto"
 	"github.com/telio-s/bint-backend.git/internal/domain/apperror"
 	"github.com/telio-s/bint-backend.git/internal/domain/model"
@@ -65,7 +66,7 @@ func NewAuthHandler(
 func (h *AuthHandler) RegisterEmail(c *gin.Context) {
 	var request dto.RegisterEmailRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		h.writeError(c, apperror.ErrInvalidInput)
+		apierror.Write(c, h.responder, apperror.ErrInvalidInput)
 		return
 	}
 	result, err := h.service.RegisterEmail(
@@ -75,7 +76,7 @@ func (h *AuthHandler) RegisterEmail(c *gin.Context) {
 		request.DisplayName,
 	)
 	if err != nil {
-		h.writeError(c, err)
+		apierror.Write(c, h.responder, err)
 		return
 	}
 	h.setAuthCookies(c, result)
@@ -91,12 +92,12 @@ func (h *AuthHandler) RegisterEmail(c *gin.Context) {
 func (h *AuthHandler) LoginEmail(c *gin.Context) {
 	var request dto.LoginEmailRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		h.writeError(c, apperror.ErrInvalidInput)
+		apierror.Write(c, h.responder, apperror.ErrInvalidInput)
 		return
 	}
 	result, err := h.service.LoginEmail(c.Request.Context(), request.Email, request.Password)
 	if err != nil {
-		h.writeError(c, err)
+		apierror.Write(c, h.responder, err)
 		return
 	}
 	h.setAuthCookies(c, result)
@@ -112,17 +113,17 @@ func (h *AuthHandler) LoginEmail(c *gin.Context) {
 func (h *AuthHandler) StartGoogle(c *gin.Context) {
 	state, err := secureRandomString(32)
 	if err != nil {
-		h.writeError(c, err)
+		apierror.Write(c, h.responder, err)
 		return
 	}
 	nonce, err := secureRandomString(32)
 	if err != nil {
-		h.writeError(c, err)
+		apierror.Write(c, h.responder, err)
 		return
 	}
 	verifier, err := secureRandomString(64)
 	if err != nil {
-		h.writeError(c, err)
+		apierror.Write(c, h.responder, err)
 		return
 	}
 	challengeHash := sha256.Sum256([]byte(verifier))
@@ -166,13 +167,13 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	refreshToken, err := c.Cookie(refreshCookieName)
 	if err != nil {
-		h.writeError(c, apperror.ErrInvalidToken)
+		apierror.Write(c, h.responder, apperror.ErrInvalidToken)
 		return
 	}
 	result, err := h.service.Refresh(c.Request.Context(), refreshToken)
 	if err != nil {
 		h.clearAuthCookies(c)
-		h.writeError(c, err)
+		apierror.Write(c, h.responder, err)
 		return
 	}
 	h.setAuthCookies(c, result)
@@ -188,7 +189,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 func (h *AuthHandler) Logout(c *gin.Context) {
 	refreshToken, _ := c.Cookie(refreshCookieName)
 	if err := h.service.Logout(c.Request.Context(), refreshToken); err != nil {
-		h.writeError(c, err)
+		apierror.Write(c, h.responder, err)
 		return
 	}
 	h.clearAuthCookies(c)
@@ -204,12 +205,12 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 func (h *AuthHandler) CurrentSession(c *gin.Context) {
 	userID, ok := c.Get(userIDContextKey)
 	if !ok {
-		h.writeError(c, apperror.ErrInvalidToken)
+		apierror.Write(c, h.responder, apperror.ErrInvalidToken)
 		return
 	}
 	user, err := h.service.CurrentUser(c.Request.Context(), userID.(string))
 	if err != nil {
-		h.writeError(c, err)
+		apierror.Write(c, h.responder, err)
 		return
 	}
 	h.responder.Success(
@@ -231,7 +232,7 @@ func (h *AuthHandler) Authenticate(c *gin.Context) {
 	}
 	claims, err := h.tokens.VerifyAccessToken(rawToken)
 	if err != nil {
-		h.writeError(c, apperror.ErrInvalidToken)
+		apierror.Write(c, h.responder, apperror.ErrInvalidToken)
 		c.Abort()
 		return
 	}
@@ -306,7 +307,7 @@ func (h *AuthHandler) clearOAuthCookies(c *gin.Context) {
 func (h *AuthHandler) redirectFailure(c *gin.Context, code string) {
 	target, err := url.Parse(h.config.FailureRedirectURL)
 	if err != nil {
-		h.writeError(c, errors.New("invalid configured failure redirect URL"))
+		apierror.Write(c, h.responder, errors.New("invalid configured failure redirect URL"))
 		return
 	}
 	query := target.Query()
@@ -341,21 +342,4 @@ func maxAge(expiry time.Time) int {
 		return 1
 	}
 	return seconds
-}
-
-func (h *AuthHandler) writeError(c *gin.Context, err error) {
-	status, code, message := http.StatusInternalServerError, 1500, "An unexpected error occurred."
-	switch {
-	case errors.Is(err, apperror.ErrInvalidInput):
-		status, code, message = http.StatusBadRequest, 1001, "The request is invalid."
-	case errors.Is(err, apperror.ErrInvalidCredentials):
-		status, code, message = http.StatusUnauthorized, 1002, "The email or password is incorrect."
-	case errors.Is(err, apperror.ErrInvalidToken):
-		status, code, message = http.StatusUnauthorized, 1003, "The authentication token is invalid or expired."
-	case errors.Is(err, apperror.ErrConflict):
-		status, code, message = http.StatusConflict, 1004, "An account already exists for this email."
-	case errors.Is(err, apperror.ErrNotFound):
-		status, code, message = http.StatusNotFound, 1005, "The requested resource was not found."
-	}
-	h.responder.Failure(c.Request.Context(), c.Writer, status, code, message, err)
 }
