@@ -13,15 +13,14 @@ import (
 
 const createEmailUser = `-- name: CreateEmailUser :one
 INSERT INTO users (
-    id, email, display_name, avatar_url, email_verified, password_hash, created_at, updated_at
+    email, display_name, avatar_url, email_verified, password_hash, created_at, updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
+    $1, $2, $3, $4, $5, $6, $7
 )
 RETURNING id, email, display_name, avatar_url, email_verified, created_at, updated_at
 `
 
 type CreateEmailUserParams struct {
-	ID            string             `json:"id"`
 	Email         string             `json:"email"`
 	DisplayName   string             `json:"display_name"`
 	AvatarUrl     string             `json:"avatar_url"`
@@ -43,7 +42,6 @@ type CreateEmailUserRow struct {
 
 func (q *Queries) CreateEmailUser(ctx context.Context, arg CreateEmailUserParams) (CreateEmailUserRow, error) {
 	row := q.db.QueryRow(ctx, createEmailUser,
-		arg.ID,
 		arg.Email,
 		arg.DisplayName,
 		arg.AvatarUrl,
@@ -66,38 +64,31 @@ func (q *Queries) CreateEmailUser(ctx context.Context, arg CreateEmailUserParams
 }
 
 const createGoogleIdentity = `-- name: CreateGoogleIdentity :exec
-INSERT INTO oauth_identities (id, user_id, provider, provider_subject, created_at)
-VALUES ($1, $2, 'google', $3, $4)
+INSERT INTO oauth_identities (user_id, provider, provider_subject, created_at)
+VALUES ($1, 'google', $2, $3)
 `
 
 type CreateGoogleIdentityParams struct {
-	ID              string             `json:"id"`
 	UserID          string             `json:"user_id"`
 	ProviderSubject string             `json:"provider_subject"`
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateGoogleIdentity(ctx context.Context, arg CreateGoogleIdentityParams) error {
-	_, err := q.db.Exec(ctx, createGoogleIdentity,
-		arg.ID,
-		arg.UserID,
-		arg.ProviderSubject,
-		arg.CreatedAt,
-	)
+	_, err := q.db.Exec(ctx, createGoogleIdentity, arg.UserID, arg.ProviderSubject, arg.CreatedAt)
 	return err
 }
 
 const createGoogleUser = `-- name: CreateGoogleUser :one
 INSERT INTO users (
-    id, email, display_name, avatar_url, email_verified, password_hash, created_at, updated_at
+    email, display_name, avatar_url, email_verified, password_hash, created_at, updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, NULL, $6, $7
+    $1, $2, $3, $4, NULL, $5, $6
 )
 RETURNING id, email, display_name, avatar_url, email_verified, created_at, updated_at
 `
 
 type CreateGoogleUserParams struct {
-	ID            string             `json:"id"`
 	Email         string             `json:"email"`
 	DisplayName   string             `json:"display_name"`
 	AvatarUrl     string             `json:"avatar_url"`
@@ -118,7 +109,6 @@ type CreateGoogleUserRow struct {
 
 func (q *Queries) CreateGoogleUser(ctx context.Context, arg CreateGoogleUserParams) (CreateGoogleUserRow, error) {
 	row := q.db.QueryRow(ctx, createGoogleUser,
-		arg.ID,
 		arg.Email,
 		arg.DisplayName,
 		arg.AvatarUrl,
@@ -305,12 +295,11 @@ func (q *Queries) RevokeRefreshToken(ctx context.Context, tokenHash string) (int
 }
 
 const storeRefreshToken = `-- name: StoreRefreshToken :exec
-INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO refresh_tokens (user_id, token_hash, expires_at, created_at)
+VALUES ($1, $2, $3, $4)
 `
 
 type StoreRefreshTokenParams struct {
-	ID        string             `json:"id"`
 	UserID    string             `json:"user_id"`
 	TokenHash string             `json:"token_hash"`
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
@@ -319,7 +308,6 @@ type StoreRefreshTokenParams struct {
 
 func (q *Queries) StoreRefreshToken(ctx context.Context, arg StoreRefreshTokenParams) error {
 	_, err := q.db.Exec(ctx, storeRefreshToken,
-		arg.ID,
 		arg.UserID,
 		arg.TokenHash,
 		arg.ExpiresAt,

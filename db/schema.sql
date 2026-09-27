@@ -2,7 +2,7 @@
 -- Keep this file synchronized with the ordered files in db/migrations.
 
 CREATE TABLE users (
-    id TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email TEXT NOT NULL UNIQUE,
     display_name TEXT NOT NULL DEFAULT '',
     avatar_url TEXT NOT NULL DEFAULT '',
@@ -13,8 +13,8 @@ CREATE TABLE users (
 );
 
 CREATE TABLE oauth_identities (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     provider TEXT NOT NULL,
     provider_subject TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
@@ -23,8 +23,8 @@ CREATE TABLE oauth_identities (
 );
 
 CREATE TABLE refresh_tokens (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     token_hash TEXT NOT NULL UNIQUE,
     expires_at TIMESTAMPTZ NOT NULL,
     revoked_at TIMESTAMPTZ,

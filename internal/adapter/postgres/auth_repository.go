@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -36,7 +35,7 @@ func (r *AuthRepository) CreateEmailUser(
 	passwordHash string,
 ) (model.User, error) {
 	row, err := r.queries.CreateEmailUser(ctx, sqlc.CreateEmailUserParams{
-		ID: user.ID, Email: user.Email, DisplayName: user.DisplayName, AvatarUrl: user.AvatarURL,
+		Email: user.Email, DisplayName: user.DisplayName, AvatarUrl: user.AvatarURL,
 		EmailVerified: user.EmailVerified, PasswordHash: &passwordHash,
 		CreatedAt: timestamp(user.CreatedAt), UpdatedAt: timestamp(user.UpdatedAt),
 	})
@@ -145,7 +144,7 @@ func (r *AuthRepository) FindOrCreateGoogleUser(
 		)
 	case errors.Is(err, pgx.ErrNoRows):
 		created, createErr := queries.CreateGoogleUser(ctx, sqlc.CreateGoogleUserParams{
-			ID: candidate.ID, Email: candidate.Email, DisplayName: candidate.DisplayName,
+			Email: candidate.Email, DisplayName: candidate.DisplayName,
 			AvatarUrl: candidate.AvatarURL, EmailVerified: candidate.EmailVerified,
 			CreatedAt: timestamp(candidate.CreatedAt), UpdatedAt: timestamp(candidate.UpdatedAt),
 		})
@@ -166,7 +165,6 @@ func (r *AuthRepository) FindOrCreateGoogleUser(
 	}
 
 	if err := queries.CreateGoogleIdentity(ctx, sqlc.CreateGoogleIdentityParams{
-		ID:              uuid.NewString(),
 		UserID:          user.ID,
 		ProviderSubject: identity.Subject,
 		CreatedAt:       timestamp(candidate.CreatedAt),
@@ -181,7 +179,7 @@ func (r *AuthRepository) FindOrCreateGoogleUser(
 
 func (r *AuthRepository) StoreRefreshToken(ctx context.Context, token model.RefreshToken) error {
 	err := r.queries.StoreRefreshToken(ctx, sqlc.StoreRefreshTokenParams{
-		ID: token.ID, UserID: token.UserID, TokenHash: token.TokenHash,
+		UserID: token.UserID, TokenHash: token.TokenHash,
 		ExpiresAt: timestamp(token.ExpiresAt), CreatedAt: timestamp(token.CreatedAt),
 	})
 	if err != nil {
@@ -211,7 +209,7 @@ func (r *AuthRepository) RotateRefreshToken(
 	}
 	replacement.UserID = row.ID
 	if err := queries.StoreRefreshToken(ctx, sqlc.StoreRefreshTokenParams{
-		ID: replacement.ID, UserID: replacement.UserID, TokenHash: replacement.TokenHash,
+		UserID: replacement.UserID, TokenHash: replacement.TokenHash,
 		ExpiresAt: timestamp(replacement.ExpiresAt), CreatedAt: timestamp(replacement.CreatedAt),
 	}); err != nil {
 		return model.User{}, fmt.Errorf("store rotated refresh token: %w", err)

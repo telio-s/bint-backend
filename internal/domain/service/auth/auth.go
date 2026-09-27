@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/telio-s/bint-backend.git/internal/domain/apperror"
 	"github.com/telio-s/bint-backend.git/internal/domain/model"
 	"github.com/telio-s/bint-backend.git/internal/port"
@@ -76,7 +75,6 @@ func (s *authService) RegisterEmail(
 
 	now := s.now().UTC()
 	user, err := s.repository.CreateEmailUser(ctx, model.User{
-		ID:          uuid.NewString(),
 		Email:       email,
 		DisplayName: strings.TrimSpace(displayName),
 		CreatedAt:   now,
@@ -137,7 +135,6 @@ func (s *authService) LoginGoogle(
 
 	now := s.now().UTC()
 	user, err := s.repository.FindOrCreateGoogleUser(ctx, model.User{
-		ID:            uuid.NewString(),
 		Email:         strings.ToLower(identity.Email),
 		DisplayName:   identity.DisplayName,
 		AvatarURL:     identity.AvatarURL,
@@ -241,7 +238,6 @@ func (s *authService) newRefreshToken(userID string) (string, model.RefreshToken
 	}
 	now := s.now().UTC()
 	return raw, model.RefreshToken{
-		ID:        uuid.NewString(),
 		UserID:    userID,
 		TokenHash: hashToken(raw),
 		ExpiresAt: now.Add(s.config.RefreshTokenTTL),

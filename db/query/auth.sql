@@ -1,16 +1,16 @@
 -- name: CreateEmailUser :one
 INSERT INTO users (
-    id, email, display_name, avatar_url, email_verified, password_hash, created_at, updated_at
+    email, display_name, avatar_url, email_verified, password_hash, created_at, updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
+    $1, $2, $3, $4, $5, $6, $7
 )
 RETURNING id, email, display_name, avatar_url, email_verified, created_at, updated_at;
 
 -- name: CreateGoogleUser :one
 INSERT INTO users (
-    id, email, display_name, avatar_url, email_verified, password_hash, created_at, updated_at
+    email, display_name, avatar_url, email_verified, password_hash, created_at, updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, NULL, $6, $7
+    $1, $2, $3, $4, NULL, $5, $6
 )
 RETURNING id, email, display_name, avatar_url, email_verified, created_at, updated_at;
 
@@ -45,12 +45,12 @@ JOIN oauth_identities AS oi ON oi.user_id = u.id
 WHERE oi.provider = 'google' AND oi.provider_subject = $1;
 
 -- name: CreateGoogleIdentity :exec
-INSERT INTO oauth_identities (id, user_id, provider, provider_subject, created_at)
-VALUES ($1, $2, 'google', $3, $4);
+INSERT INTO oauth_identities (user_id, provider, provider_subject, created_at)
+VALUES ($1, 'google', $2, $3);
 
 -- name: StoreRefreshToken :exec
-INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at)
-VALUES ($1, $2, $3, $4, $5);
+INSERT INTO refresh_tokens (user_id, token_hash, expires_at, created_at)
+VALUES ($1, $2, $3, $4);
 
 -- name: GetRefreshTokenForUpdate :one
 SELECT u.id, u.email, u.display_name, u.avatar_url, u.email_verified, u.created_at, u.updated_at

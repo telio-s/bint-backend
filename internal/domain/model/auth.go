@@ -21,7 +21,6 @@ type GoogleIdentity struct {
 }
 
 type RefreshToken struct {
-	ID        string
 	UserID    string
 	TokenHash string
 	ExpiresAt time.Time
