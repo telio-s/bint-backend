@@ -50,8 +50,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthSuccessResponse"
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "409": { $ref: "#/components/responses/Conflict" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "409": { $ref: "#/components/responses/AccountConflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
   /api/v1/auth/email/login:
     post:
       tags: [Authentication]
@@ -70,8 +71,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthSuccessResponse"
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
+        "400": { $ref: "#/components/responses/InvalidRequest" }
+        "401": { $ref: "#/components/responses/InvalidCredentials" }
+        "500": { $ref: "#/components/responses/InternalError" }
   /api/v1/auth/google:
     get:
       tags: [Authentication]
@@ -80,6 +82,7 @@ paths:
       responses:
         "302":
           description: Redirect to Google's authorization endpoint
+        "500": { $ref: "#/components/responses/InternalError" }
   /api/v1/auth/google/callback:
     get:
       tags: [Authentication]
@@ -103,6 +106,7 @@ paths:
       responses:
         "302":
           description: Redirect to the configured frontend success or failure URL
+        "500": { $ref: "#/components/responses/InternalError" }
   /api/v1/auth/refresh:
     post:
       tags: [Authentication]
@@ -117,7 +121,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthSuccessResponse"
-        "401": { $ref: "#/components/responses/Unauthorized" }
+        "401": { $ref: "#/components/responses/InvalidToken" }
+        "500": { $ref: "#/components/responses/InternalError" }
   /api/v1/auth/logout:
     post:
       tags: [Authentication]
@@ -132,6 +137,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EmptySuccessResponse"
+        "500": { $ref: "#/components/responses/InternalError" }
   /api/v1/auth/session:
     get:
       tags: [Authentication]
@@ -147,7 +153,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SessionSuccessResponse"
-        "401": { $ref: "#/components/responses/Unauthorized" }
+        "401": { $ref: "#/components/responses/InvalidToken" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
 components:
   securitySchemes:
     bearerAuth:
@@ -249,18 +257,75 @@ components:
             - type: object
               additionalProperties: true
   responses:
-    BadRequest:
+    InvalidRequest:
       description: Invalid request
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorResponse" }
-    Unauthorized:
-      description: Invalid credentials or token
+          example:
+            code: 1001
+            message: The request is invalid.
+            error: invalid input
+    InvalidCredentials:
+      description: Invalid email or password
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorResponse" }
-    Conflict:
+          example:
+            code: 1002
+            message: The email or password is incorrect.
+            error: invalid credentials
+    InvalidToken:
+      description: Invalid or expired Bint authentication token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+          example:
+            code: 1003
+            message: The authentication token is invalid or expired.
+            error: invalid token
+    AccountConflict:
       description: Account already exists
       content:
         application/json:
           schema: { $ref: "#/components/schemas/ErrorResponse" }
+          example:
+            code: 1004
+            message: An account already exists for this email.
+            error: resource already exists
+    ResourceNotFound:
+      description: Requested resource was not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+          example:
+            code: 1005
+            message: The requested resource was not found.
+            error: resource not found
+    RouteNotFound:
+      description: Requested route was not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+          example:
+            code: 1005
+            message: The requested route was not found.
+            error: route not found
+    MethodNotAllowed:
+      description: HTTP method is not allowed for the requested route
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+          example:
+            code: 1006
+            message: The HTTP method is not allowed for this route.
+            error: method not allowed
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+          example:
+            code: 1500
+            message: An unexpected error occurred.
+            error: internal error
